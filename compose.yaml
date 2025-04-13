@@ -1,0 +1,162 @@
+services:
+
+  grafana:
+    restart: always
+    image: ${GRAFANA_IMAGE_NAME}:${GRAFANA_IMAGE_TAG}
+    container_name: ${GRAFANA_CONTAINER_NAME}
+    hostname: ${GRAFANA_HOSTNAME}
+    networks:
+      grafana:
+    ports:
+      - "3000:3000"
+    environment:
+#     - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL}
+      - GF_INSTALL_PLUGINS=${GF_INSTALL_PLUGINS}
+      - GF_FEATURE_TOGGLES_ENABLE=${GF_FEATURE_TOGGLES_ENABLE}
+      - GF_DEFAULT_INSTANCE_NAME=${GF_DEFAULT_INSTANCE_NAME}
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+    volumes:
+      # predefine datasources
+      # - "./data/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml"
+      - grafana-datasources:/etc/grafana/provisioning/datasources
+      - grafana-data:/var/lib/grafana
+      - grafana-configs:/etc/grafana
+      - grafana-logs:/etc/grafana/logs
+    command:
+    #   - --config=/etc/grafana/grafana_custom.ini
+      - cfg:default.paths.logs=/etc/grafana/logs
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+      ## Uncomment if use in Linux, comment winexporter below
+      node-exporter:
+        condition: service_healthy
+
+    #   ## Uncomment if use in Windows, comment node-exporter upper
+    #   # winexporter:
+    #   #   condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://0.0.0.0:3000"]
+      start_period: 5s
+      interval: 30s
+      retries: 3
+      timeout: 5s
+
+  prometheus:
+    restart: always
+    image: ${PROMETHEUS_IMAGE_NAME}:${PROMETHEUS_IMAGE_TAG}
+    container_name: ${PROMETHEUS_CONTAINER_NAME}
+    hostname: ${PROMETHEUS_HOSTNAME}
+    networks:
+      grafana:
+    # expose:
+    #   - 9090
+    ports:
+      - "9090:9090"
+    volumes:
+      - prom-data:/prometheus
+      - prom-configs:/etc/prometheus
+    healthcheck:
+      test: "wget --no-verbose --tries=3 --spider http://0.0.0.0:9090/metrics || exit 1"
+      start_period: 5s
+      interval: 30s
+      retries: 3
+      timeout: 5s
+
+  ## Uncomment, If you run this compose at linux (uncomment it, comment winexporter below. Comment winexporter in grafana service at Healthcheck block)
+  ## ----------------------------------------------------------------------
+  node-exporter:
+    restart: always
+    image: ${NODE_IMAGE_NAME}:${NODE_IMAGE_TAG}
+    container_name: ${NODE_CONTAINER_NAME}
+    hostname: ${NODE_HOSTNAME}
+    networks:
+      grafana:
+    # expose:
+    #   - 9100
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude'
+      - '^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
+    healthcheck:
+      test: "wget --no-verbose --tries=3 --spider http://0.0.0.0:9100/metrics || exit 1"
+      start_period: 5s
+      interval: 30s
+      retries: 3
+      timeout: 5s
+
+  ## Uncomment, If you run this compose at Windows (uncomment it, comment node-exporter upper. Comment node-exporter in grafana service at Healthcheck block)
+  # winexporter:
+  #   restart: always
+  #   image: ${WE_IMAGE_NAME}:${WE_IMAGE_TAG}
+  #   container_name: ${WE_CONTAINER_NAME}
+  #   hostname: ${WE_HOSTNAME}
+  #   # expose:
+  #   #   - 9182
+  #   ports:
+  #     - "9182:9182"
+  #   healthcheck:
+  #     test: "wget --no-verbose --tries=3 --spider http://0.0.0.0:9182/metrics || exit 1"
+  #     start_period: 5s
+  #     interval: 30s
+  #     retries: 3
+  #     timeout: 5s
+
+networks:
+  grafana:
+
+volumes:
+
+# --> Grafana volumes
+  grafana-data:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./data/grafana/data"
+
+  grafana-configs:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./data/grafana/configs"
+
+  grafana-logs:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./data/grafana/logs"
+  
+  grafana-datasources:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./data/grafana/datasources"
+# <-- Grafana volumes
+
+# --> Prometheus volumes
+  prom-data:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./data/prometheus/data"
+
+  prom-configs:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./data/prometheus/configs"
+# <-- Prometheus volumes
