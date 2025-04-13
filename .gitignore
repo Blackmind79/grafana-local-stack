@@ -4,9 +4,7 @@
 !.env
 
 # Data folder
-data/grafana/configs/*
 data/grafana/data/*
-data/grafana/datasources/*
 data/grafana/logs/*
 data/prometheus/configs/*
 data/prometheus/data/*
@@ -14,8 +12,6 @@ data/prometheus/data/*
 # track grafana's config files
 !data/grafana/configs/.gitkeep
 !data/grafana/data/.gitkeep
-!data/grafana/datasources/grafana-datasources.yaml
-!data/grafana/datasources/.gitkeep
 !data/grafana/logs/.gitkeep
 
 # track prometheus's config files
